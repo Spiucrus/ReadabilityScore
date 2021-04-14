@@ -1,118 +1,140 @@
+
 package readability;
 
-import java.util.Scanner;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.regex.Pattern;
+import java.util.Scanner;
+
 
 public class Main {
-    /**
-     * Gets file path and runs the Readability calculator
-     * @param args - Contains a file name if the user wants to specify the file before entering the program
-     */
-    public static void main(String[] args) {
-        try {
-            String filePath;
-            if (args.length > 0) {
-                filePath = args[0];
-            } else {
-                System.out.print("Enter a File Path: ");
-                filePath = new Scanner(System.in).next();
-            }
-            String text = readFileAsString(filePath).toLowerCase();
-            runReadabilityCalculator(text);
-        } catch (IOException exception) {
-            System.out.println(exception.getMessage() + " was not found");
-        } finally {
-            System.out.println("\nThanks for using my Readability Calculator");
+    public static void main(String[] args) throws IOException {
+        Scanner scanner = new Scanner(System.in);
+        String fileName = args[0];
+
+        System.out.println(fileName);
+        String text = new String(Files.readAllBytes(Paths.get(fileName)));
+
+        System.out.println("The text is:");
+        System.out.println(text);
+        System.out.println();
+        int wordCount = calculateWordCount(text);
+        int sentenceCount = calculateSentenceCount(text);
+        int characterCount = calculateCharacterCount(text);
+        int syllableCount = calculateSyllableCount(text);
+        int polySyllableCount = calculatePolySyllableCount(text);
+
+        System.out.printf("Words: %d\n", wordCount);
+        System.out.printf("Sentences: %d\n", sentenceCount);
+        System.out.printf("Characters: %d\n", characterCount);
+        System.out.printf("Syllables: %d\n", syllableCount);
+        System.out.printf("Polysyllables: %d\n", polySyllableCount);
+
+        double ariScore = calculateARIndexScore(wordCount, sentenceCount, characterCount);
+        double fkScore = calculateFKIndexScore(wordCount, sentenceCount, syllableCount);
+        double smogScore = calculateSMOGIndexScore(sentenceCount, polySyllableCount);
+        double clScore = calculateCLIndexScore(sentenceCount, wordCount, characterCount);
+
+        int ariAge = calculateAgeFromIndexScore(ariScore);
+        int fkAge = calculateAgeFromIndexScore(fkScore);
+        int smogAge = calculateAgeFromIndexScore(smogScore);
+        int clAge = calculateAgeFromIndexScore(clScore);
+
+        double avgAge = (double) (ariAge + fkAge + smogAge + clAge) / 4;
+
+        System.out.print("Enter the score you want to calculate (ARI, FK, SMOG, CL, all): ");
+        String selection = scanner.nextLine().trim();
+        System.out.println("");
+        switch (selection) {
+            case "ARI":
+                System.out.printf("Automated Readability Index: %.2f (about %d year olds).%n", ariScore, ariAge);
+                break;
+            case "FK":
+                System.out.printf("Flesch–Kincaid readability tests: %.2f (about %d year olds).%n", fkScore, fkAge);
+                break;
+            case "SMOG":
+                System.out.printf("Simple Measure of Gobbledygook: %.2f (about %d year olds).%n", smogScore, smogAge);
+                break;
+            case "CL":
+                System.out.printf("Coleman–Liau index: %.2f (about %d year olds).%n", clScore, clAge);
+                break;
+            case "all":
+                System.out.printf("Automated Readability Index: %.2f (about %d year olds).%n", ariScore, ariAge);
+                System.out.printf("Flesch–Kincaid readability tests: %.2f (about %d year olds).%n", fkScore, fkAge);
+                System.out.printf("Simple Measure of Gobbledygook: %.2f (about %d year olds).%n", smogScore, smogAge);
+                System.out.printf("Coleman–Liau index: %.2f (about %d year olds).%n", clScore, clAge);
+                break;
+            default:
+                throw new IllegalStateException("Unexpected value: " + selection);
         }
+
+        System.out.printf("This text should be understood in average by %.2f year olds.", avgAge);
     }
 
+    private static int calculateWordCount(String text) {
+        return text.split(" ").length;
+    }
 
-    public static void runReadabilityCalculator(String text) {
-        try {
-            int sentenceCount = text.split("[.?!][\\s]+").length;
-            int wordCount = text.split("[\\s]+").length;
-            int charCount = text.replaceAll("[\\s]+", "").length();
-            int syllableCount = 0;
-            int polySyllableCount = 0;
-            for (String word : text.split("[,:'\"]?[\\s]+[,:'\"]?")) {
-                if (word.charAt(word.length() - 1) == 'e') {
-                    word = word.substring(0, word.length() - 1);
-                }
-                int syllables = (int) Pattern.compile("[aeiouy]+").matcher(word).results().count();
-                polySyllableCount += syllables >= 3 ? 1 : 0;
-                syllableCount += syllables == 0 ? 1 : syllables;
-            }
+    private static int calculateSentenceCount(String text) {
+        return text.split("[.!?]").length;
+    }
 
-            double scoreARI = (4.71 * charCount / wordCount) +
-                    (0.5 * wordCount / sentenceCount) - 21.43;
-            double scoreFK = (0.39 * wordCount / sentenceCount) +
-                    (11.8 * syllableCount / wordCount) - 15.59;
-            double scoreSMOG = 1.043 * Math.sqrt(polySyllableCount * 30f / sentenceCount) + 3.1291;
-            double scoreCL = 0.0588 * ((double) charCount / wordCount * 100) -
-                    0.296 * ((double) sentenceCount / wordCount * 100) - 15.8;
+    private static int calculateCharacterCount(String text) {
+        return text.replaceAll("\\s", "").length();
+    }
 
-            // The lines below retrieve the age based on the different readability scores
-            int ageARI = getAge(scoreARI);
-            int ageFK = getAge(scoreFK);
-            int ageSMOG = getAge(scoreSMOG);
-            int ageCL = getAge(scoreCL);
+    private static int calculateSyllableCount(String text) {
+        String[] words = text.split(" ");
+        int syllableCount = 0;
 
-            // The lines below print out information about the calculations
-            System.out.println("Words: " + wordCount);
-            System.out.println("Sentences: " + sentenceCount);
-            System.out.println("Characters: " + charCount);
-            System.out.println("Syllables: " + syllableCount);
-            System.out.println("Polysyllables: " + polySyllableCount);
-            System.out.print("Enter the score you want to calculate (ARI, FK, SMOG, CL, all): ");
-            String desiredScore = new Scanner(System.in).next();
-            System.out.println();
-
-            switch (desiredScore.toLowerCase()) {
-                case "all":
-                    System.out.printf("Automated Readability Index: %f (about %s year olds)",
-                            scoreARI, ageARI);
-                    System.out.printf("\nFlesch-Kincaid readability tests: %f (about %s year olds)",
-                            scoreFK, ageFK);
-                    System.out.printf("\nSimple Measure of Gobbledygook: %f (about %s year olds)",
-                            scoreSMOG, ageSMOG);
-                    System.out.printf("\nColeman-Liau index: %f (about %s year olds)",
-                            scoreCL, ageCL);
-                    double avg = (ageARI + ageARI + ageSMOG + ageCL) / 4f;
-                    System.out.printf("\n\nThis text should be understood in average by %f year olds.", avg);
-                    break;
-                case "ari":
-                    System.out.printf("Automated Readability Index: %f (about %s year olds)",
-                            scoreARI, ageARI);
-                    break;
-                case "fk":
-                    System.out.printf("Flesch-Kincaid readability tests: %f (about %s year olds)",
-                            scoreFK, ageFK);
-                    break;
-                case "smog":
-                    System.out.printf("Simple Measure of Gobbledygook: %f (about %s year olds)",
-                            scoreSMOG, ageSMOG);
-                    break;
-                case "cl":
-                    System.out.printf("Coleman-Liau index: %f (about %s year olds)",
-                            scoreCL, ageCL);
-                    break;
-                default:
-                    System.out.println("I can't calculate that :(");
-                    break;
-            }
-        } catch (ArithmeticException exception) {
-            System.out.println("Seems like the file was empty or there was something wrong with the arithmetic");
+        for (String word : words) {
+            syllableCount += syllablesPerWord(word);
         }
+
+        return syllableCount;
     }
 
-    public static String readFileAsString(String filePath) throws IOException {
-        return new String(Files.readAllBytes(Paths.get(filePath)));
+    private static int calculatePolySyllableCount(String text) {
+        String[] words = text.split(" ");
+        int polySyllableCount = 0;
+
+        for (String word : words) {
+            int syllables = syllablesPerWord(word);
+            if (syllables > 2)
+                polySyllableCount++;
+        }
+
+        return polySyllableCount;
     }
 
-    public static int getAge(double grade) {
+    private static int syllablesPerWord(String word) {
+        int count; // count of vowels
+        count = word
+                .replaceAll("[aeiouy]{2,}", "a") //replace double vowels
+                .replaceAll("e$", "") // replace word ending in e
+                .replaceAll("[^aeiouy]", "") // replace non-vowels
+                .length();
+
+        return Math.max(1, count);
+    }
+
+    private static double calculateARIndexScore(double wordCount, double sentenceCount, double characterCount) {
+        return 4.71 * (characterCount / wordCount) + 0.5 * (wordCount / sentenceCount) - 21.43;
+    }
+
+    private static double calculateFKIndexScore(int wordCount, int sentenceCount, int syllableCount) {
+        return 0.39 * wordCount / sentenceCount + 11.8 * syllableCount / wordCount - 15.59;
+    }
+
+    private static double calculateSMOGIndexScore(int sentenceCount, int polySyllableCount) {
+        return 1.043 * Math.sqrt(polySyllableCount * 30 / sentenceCount) + 3.1291;
+    }
+
+    private static double calculateCLIndexScore(int sentenceCount, int wordCount, int characterCount) {
+        return 0.0588 * (characterCount * 100 / (double) wordCount) - 0.296 * (sentenceCount * 100 / (double) wordCount) - 15.8;
+    }
+
+    private static int calculateAgeFromIndexScore(double grade) {
         int score = (int) Math.round(grade);
         if (score < 3) {
             return (score + 5);
@@ -125,6 +147,3 @@ public class Main {
         }
     }
 }
-
-
-
