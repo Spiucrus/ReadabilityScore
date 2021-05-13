@@ -5,6 +5,8 @@ Developing a program that can identify the difficulty of a piece of text and ide
 + The system is implemented in Java. 
 + My implementation of [Hyperskill.org](https://hyperskill.org/projects/39)
 
+Created 2.04.2021
+
 
 
 Description of the methods used to calculate readability index text(links to wikipedia):
